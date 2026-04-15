@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>매출 현황 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:        #F7F8FC;
+  --surface:   #FFFFFF;
+  --surface2:  #F0F2F8;
+  --border:    #E4E7F0;
+  --text:      #1A1D2E;
+  --text-sub:  #6B7280;
+  --text-mute: #9CA3AF;
+  --accent:    #4F6EF7;
+  --accent-dim:#EEF1FE;
+  --radius:    12px;
+  --font-mono: 'DM Mono', monospace;
+  --sidebar-w: 220px;
+}
+
+html { font-size: 14px; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+  position: fixed; top: 0; left: 0;
+  display: flex; flex-direction: column;
+  z-index: 40;
+}
+.sidebar-logo {
+  height: 64px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.5px;
+}
+.sidebar-logo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+}
+.sidebar-section-label {
+  font-size: 10px; font-weight: 700; color: var(--text-mute);
+  letter-spacing: 0.6px; text-transform: uppercase;
+  padding: 20px 20px 8px;
+}
+.sidebar-menu { padding: 0 10px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--text-sub);
+  cursor: pointer; transition: all 0.15s ease;
+  margin-bottom: 2px;
+}
+.sidebar-item:hover { background: var(--surface2); color: var(--text); }
+.sidebar-item.active {
+  background: var(--accent-dim); color: var(--accent);
+  font-weight: 600;
+}
+.sidebar-item-icon { font-size: 15px; }
+
+/* ── BODY WRAP ── */
+.body-wrap {
+  margin-left: var(--sidebar-w);
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 30;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+.header-title {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.3px;
+}
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.add-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent); color: white;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.add-btn:hover { opacity: 0.88; }
+.edit-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-sub);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+.edit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.edit-btn:disabled:hover { border-color: var(--border); color: var(--text-sub); }
+
+/* ── SECTION ── */
+.section { display: none; }
+.section.active { display: block; }
+.main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+/* ── KPI CARDS ── */
+.kpi-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.kpi-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-mute); letter-spacing: 0.4px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.kpi-value {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 22px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.kpi-sub { font-size: 11px; color: var(--text-mute); }
+
+/* ── TABS ── */
+.tab-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.tab-btn {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-sub);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* ── CHARTS ROW ── */
+.charts-row {
+  display: grid; grid-template-columns: 1fr 340px;
+  gap: 16px; margin-bottom: 20px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.chart-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 18px; }
+.chart-wrap { position: relative; }
+.bar-wrap { height: 280px; }
+.donut-wrap { height: 240px; display: flex; align-items: center; justify-content: center; }
+
+/* ── TABLE ── */
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-period { font-size: 11px; font-weight: 500; color: var(--text-mute); font-family: var(--font-mono); }
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th {
+  padding: 10px 16px;
+  background: var(--surface2);
+  font-size: 11px; font-weight: 700;
+  color: var(--text-mute); text-align: right;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--border);
+}
+.tbl th:first-child { text-align: left; }
+.tbl td {
+  padding: 10px 16px;
+  font-size: 12px; color: var(--text-sub);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.tbl td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+.tbl tr:last-child td { border-bottom: none; font-weight: 700; color: var(--text); background: var(--surface2); }
+.tbl tr:hover td { background: var(--bg); }
+.tbl tr:last-child:hover td { background: var(--surface2); }
+.ratio-bar {
+  display: inline-block;
+  height: 4px; border-radius: 2px;
+  margin-right: 6px; vertical-align: middle;
+}
+.tbl tr.cat-row td { background: var(--surface); }
+.tbl tr.item-row td {
+  background: var(--surface2);
+  font-size: 11px; color: var(--text-mute);
+  padding: 7px 16px 7px 36px;
+}
+.tbl tr.item-row td:first-child { font-weight: 400; color: var(--text-sub); }
+.tbl tr.item-row:hover td { background: #E8EAF4; }
+.expand-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-sub);
+  font-size: 13px; font-weight: 700; line-height: 1;
+  cursor: pointer; transition: all 0.15s;
+  margin-left: 8px; vertical-align: middle;
+}
+.expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px);
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px; overflow-y: auto;
+}
+.modal-overlay.open { display: flex; animation: fadeIn 0.15s ease; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%; max-width: 560px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+  animation: slideUp 0.2s ease;
+}
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--text-mute); letter-spacing: 0.3px; }
+.form-input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px; color: var(--text);
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+.form-input:focus { outline: none; border-color: var(--accent); }
+.form-divider {
+  font-size: 11px; font-weight: 700;
+  color: var(--text-mute); letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 18px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-cancel {
+  padding: 9px 20px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-sub);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-cancel:hover { border-color: var(--accent); color: var(--accent); }
+.btn-save {
+  padding: 9px 20px; border-radius: 8px; border: none;
+  background: var(--accent); color: white;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-save:hover { opacity: 0.88; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── ANIM ── */
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+@media (max-width: 1100px) {
+  .charts-row { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .body-wrap { margin-left: 0; }
+  .main { padding: 16px; }
+  .header { padding: 0 16px; }
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .route-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-dot"></div>
+    매출 현황
+  </div>
+  <div class="sidebar-section-label">통계</div>
+  <nav class="sidebar-menu">
+    <div class="sidebar-item active" id="menuRoute" onclick="switchSection('route')">
+      <span class="sidebar-item-icon">📍</span>
+      내원경로 매출 현황
+    </div>
+    <div class="sidebar-item" id="menuProcedure" onclick="switchSection('procedure')">
+      <span class="sidebar-item-icon">💉</span>
+      시술별 매출 현황
+    </div>
+    <div class="sidebar-item" id="menuCosmetics" onclick="switchSection('cosmetics')">
+      <span class="sidebar-item-icon">💄</span>
+      화장품 매출 현황
+    </div>
+  </nav>
+</aside>
+
+<div class="body-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-title" id="headerTitle">내원경로 매출 현황</div>
+    <div class="header-actions">
+      <button class="edit-btn" id="editBtn" onclick="onEditClick()" disabled>✏️ 수정</button>
+      <button class="add-btn" onclick="onAddClick()">🔒 데이터 추가</button>
+    </div>
+  </header>
+
+  <!-- ══ SECTION: 내원경로 ══ -->
+  <div class="section active" id="sectionRoute">
+    <div class="main">
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">기간 총 매출</div><div class="kpi-value" id="r_kpiTotal">—</div><div class="kpi-sub" id="r_kpiTotalSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">월 평균 매출</div><div class="kpi-value" id="r_kpiAvg">—</div><div class="kpi-sub" id="r_kpiAvgSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">최고 내원경로</div><div class="kpi-value" id="r_kpiTop">—</div><div class="kpi-sub" id="r_kpiTopSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">집계 월수</div><div class="kpi-value" id="r_kpiMonths">—</div><div class="kpi-sub" id="r_kpiMonthsSub"></div></div>
+      </div>
+      <div class="tab-bar" id="r_tabBar"></div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">월별 총 매출</div>
+          <div class="chart-wrap bar-wrap"><canvas id="r_barChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">내원경로별 비율</div>
+          <div class="chart-wrap donut-wrap"><canvas id="r_donutChart"></canvas></div>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <span>내원경로별 매출 상세</span>
+          <span class="table-period" id="r_tablePeriod"></span>
+        </div>
+        <div style="overflow-x:auto;"><table class="tbl" id="r_dataTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECTION: 시술별 ══ -->
+  <div class="section" id="sectionProcedure">
+    <div class="main">
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">기간 총 매출</div><div class="kpi-value" id="p_kpiTotal">—</div><div class="kpi-sub" id="p_kpiTotalSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">월 평균 매출</div><div class="kpi-value" id="p_kpiAvg">—</div><div class="kpi-sub" id="p_kpiAvgSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">최고 시술 분류</div><div class="kpi-value" id="p_kpiTop">—</div><div class="kpi-sub" id="p_kpiTopSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">집계 월수</div><div class="kpi-value" id="p_kpiMonths">—</div><div class="kpi-sub" id="p_kpiMonthsSub"></div></div>
+      </div>
+      <div class="tab-bar" id="p_tabBar"></div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">월별 총 매출</div>
+          <div class="chart-wrap bar-wrap"><canvas id="p_barChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">시술 분류별 비율</div>
+          <div class="chart-wrap donut-wrap"><canvas id="p_donutChart"></canvas></div>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <span>시술 분류별 매출 상세 <button class="expand-btn" id="p_expandBtn" onclick="P.toggleExpand()" title="항목별 상세 보기">+</button></span>
+          <span class="table-period" id="p_tablePeriod"></span>
+        </div>
+        <div style="overflow-x:auto;"><table class="tbl" id="p_dataTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECTION: 화장품 ══ -->
+  <div class="section" id="sectionCosmetics">
+    <div class="main">
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">기간 총 매출</div><div class="kpi-value" id="c_kpiTotal">—</div><div class="kpi-sub" id="c_kpiTotalSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">월 평균 매출</div><div class="kpi-value" id="c_kpiAvg">—</div><div class="kpi-sub" id="c_kpiAvgSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">총 판매 횟수</div><div class="kpi-value" id="c_kpiCnt">—</div><div class="kpi-sub" id="c_kpiCntSub"></div></div>
+        <div class="kpi-card"><div class="kpi-label">최고 판매 제품</div><div class="kpi-value" id="c_kpiTop" style="font-size:15px">—</div><div class="kpi-sub" id="c_kpiTopSub"></div></div>
+      </div>
+      <div class="tab-bar" id="c_tabBar"></div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">월별 총 매출</div>
+          <div class="chart-wrap bar-wrap"><canvas id="c_barChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">제품별 매출 비율 (상위 10)</div>
+          <div class="chart-wrap donut-wrap"><canvas id="c_donutChart"></canvas></div>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <span>제품별 매출 상세</span>
+          <span class="table-period" id="c_tablePeriod"></span>
+        </div>
+        <div style="overflow-x:auto;"><table class="tbl" id="c_dataTable"></table></div>
+        <div id="c_tableNote" style="padding:10px 20px 14px;font-size:11px;color:var(--text-mute);"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /body-wrap -->
+
+<!-- MODAL (공용) -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">📊 월 데이터 추가</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">연도</label>
+        <input class="form-input" id="inputYear" type="number" value="2026" min="2020" max="2099">
+      </div>
+      <div class="form-group">
+        <label class="form-label">월</label>
+        <input class="form-input" id="inputMonth" type="number" value="4" min="1" max="12">
+      </div>
+    </div>
+    <div class="form-divider" id="modalDivider">매출액 (원)</div>
+    <div class="route-grid" id="routeInputs"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-save" onclick="saveData()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════
+   SHARED CONFIG
+════════════════════════════ */
+const ADMIN_PW = '0505';
+
+function getMonthLabel(key) {
+  const [y, m] = key.split('-');
+  return `${y}년 ${parseInt(m)}월`;
+}
+function fmt(n) {
+  if (n >= 100000000) return (n / 100000000).toFixed(1) + '억';
+  if (n >= 10000) return Math.round(n / 10000).toLocaleString() + '만';
+  return n.toLocaleString();
+}
+function fmtFull(n) { return n.toLocaleString() + '원'; }
+function fmtPct(n, total) {
+  if (!total) return '0.00%';
+  return (n / total * 100).toFixed(2) + '%';
+}
+
+/* ════════════════════════════
+   SECTION SWITCH
+════════════════════════════ */
+let currentSection = 'route';
+
+function switchSection(sec) {
+  currentSection = sec;
+  document.getElementById('sectionRoute').classList.toggle('active', sec === 'route');
+  document.getElementById('sectionProcedure').classList.toggle('active', sec === 'procedure');
+  document.getElementById('sectionCosmetics').classList.toggle('active', sec === 'cosmetics');
+  document.getElementById('menuRoute').classList.toggle('active', sec === 'route');
+  document.getElementById('menuProcedure').classList.toggle('active', sec === 'procedure');
+  document.getElementById('menuCosmetics').classList.toggle('active', sec === 'cosmetics');
+  const titles = { route:'내원경로 매출 현황', procedure:'시술별 매출 현황', cosmetics:'화장품 매출 현황' };
+  document.getElementById('headerTitle').textContent = titles[sec];
+
+  document.getElementById('editBtn').style.display = '';
+  document.getElementById('editBtn').disabled = true;
+
+  if (sec === 'route') { document.getElementById('editBtn').disabled = (R.selectedTab === '전체'); R.render(); }
+  else if (sec === 'procedure') { document.getElementById('editBtn').disabled = (P.selectedTab === '전체'); P.render(); }
+  else { document.getElementById('editBtn').disabled = (C.selectedTab === '전체'); C.render(); }
+}
+
+function onEditClick() {
+  if (currentSection === 'route') R.openEditModal();
+  else if (currentSection === 'procedure') P.openEditModal();
+  else C.openEditModal();
+}
+function onAddClick() {
+  if (currentSection === 'route') R.openAddModal();
+  else if (currentSection === 'procedure') P.openAddModal();
+  else C.openAddModal();
+}
+
+/* ════════════════════════════
+   MODULE: 내원경로 (R)
+════════════════════════════ */
+const R = (() => {
+  const STORAGE_KEY = 'revenue_extra_data';
+  let selectedTab = '전체';
+  let barChart = null, donutChart = null;
+  let isEditMode = false;
+
+  const ROUTES = [
+    '내원 고객 소개','직원소개','미내원 고객 소개','간판','워크인',
+    '네이버','유튜브','카카오채널','인스타그램','카페','블로그',
+    '다음','VIP초대권','기타','킵스고객','홈페이지DB','틱톡','미설정'
+  ];
+  const COLORS = [
+    '#4F6EF7','#F59E0B','#10B981','#EF4444','#8B5CF6',
+    '#EC4899','#06B6D4','#84CC16','#F97316','#6366F1',
+    '#14B8A6','#F43F5E','#A855F7','#22C55E','#EAB308',
+    '#3B82F6','#94A3B8','#CBD5E1'
+  ];
+  const BASE = {
+    '2026-01': {
+      '내원 고객 소개':323705400,'직원소개':3891330,'미내원 고객 소개':73310460,
+      '간판':29625040,'워크인':41921430,'네이버':220880820,'유튜브':58469510,
+      '카카오채널':1540000,'인스타그램':61449450,'카페':27241370,'블로그':48336740,
+      '다음':296000,'VIP초대권':3113000,'기타':33479840,'킵스고객':12208900,
+      '홈페이지DB':0,'틱톡':2149000,'미설정':874248900
+    },
+    '2026-02': {
+      '내원 고객 소개':329747150,'직원소개':14555280,'미내원 고객 소개':41315810,
+      '간판':48884610,'워크인':7038840,'네이버':211761150,'유튜브':96492840,
+      '카카오채널':3539000,'인스타그램':80217900,'카페':61263110,'블로그':38659500,
+      '다음':5000000,'VIP초대권':0,'기타':25412770,'킵스고객':11994110,
+      '홈페이지DB':11297000,'틱톡':1754000,'미설정':757879200
+    },
+    '2026-03': {
+      '내원 고객 소개':435730470,'직원소개':23072600,'미내원 고객 소개':40159800,
+      '간판':49079600,'워크인':27259610,'네이버':117142850,'유튜브':46077960,
+      '카카오채널':6264320,'인스타그램':48159000,'카페':14714310,'블로그':41953870,
+      '다음':12322980,'VIP초대권':0,'기타':11264120,'킵스고객':3471140,
+      '홈페이지DB':8526000,'틱톡':0,'미설정':1237043700
+    }
+  };
+
+  function getAllData() {
+    const extra = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    return { ...BASE, ...extra };
+  }
+  function getSortedKeys() { return Object.keys(getAllData()).sort(); }
+  function getTotal(data) { return ROUTES.reduce((s, r) => s + (data[r] || 0), 0); }
+  function getDataForPeriod() {
+    const all = getAllData();
+    if (selectedTab === '전체') {
+      const merged = {};
+      ROUTES.forEach(r => { merged[r] = Object.values(all).reduce((s, mo) => s + (mo[r] || 0), 0); });
+      return merged;
+    }
+    return all[selectedTab] || {};
+  }
+
+  function selectTab(key) {
+    selectedTab = key;
+    document.getElementById('editBtn').disabled = (key === '전체');
+    render();
+  }
+
+  function render() {
+    renderTabs(); renderKPI(); renderBar(); renderDonut(); renderTable();
+  }
+
+  function renderTabs() {
+    const keys = getSortedKeys();
+    let html = `<button class="tab-btn ${selectedTab==='전체'?'active':''}" onclick="R.selectTab('전체')">전체</button>`;
+    keys.forEach(k => {
+      html += `<button class="tab-btn ${selectedTab===k?'active':''}" onclick="R.selectTab('${k}')">${getMonthLabel(k)}</button>`;
+    });
+    document.getElementById('r_tabBar').innerHTML = html;
+  }
+
+  function renderKPI() {
+    const all = getAllData(); const keys = getSortedKeys();
+    const data = getDataForPeriod(); const total = getTotal(data);
+    document.getElementById('r_kpiTotal').textContent = fmt(total) + '원';
+    document.getElementById('r_kpiTotalSub').textContent = selectedTab === '전체' ? `${keys.length}개월 누적` : getMonthLabel(selectedTab);
+    const mc = selectedTab === '전체' ? keys.length : 1;
+    document.getElementById('r_kpiAvg').textContent = fmt(Math.round(total / (mc || 1))) + '원';
+    document.getElementById('r_kpiAvgSub').textContent = selectedTab === '전체' ? `${keys.length}개월 기준` : '단월 기준';
+    let topR = '', topV = 0;
+    ROUTES.forEach(r => { if ((data[r]||0) > topV) { topV = data[r]||0; topR = r; } });
+    document.getElementById('r_kpiTop').textContent = topR || '—';
+    document.getElementById('r_kpiTopSub').textContent = topV ? `${fmt(topV)}원 (${fmtPct(topV, total)})` : '';
+    document.getElementById('r_kpiMonths').textContent = keys.length + '개월';
+    document.getElementById('r_kpiMonthsSub').textContent = keys.length > 0 ? `${getMonthLabel(keys[0])} ~ ${getMonthLabel(keys[keys.length-1])}` : '';
+  }
+
+  function renderBar() {
+    const all = getAllData(); const keys = getSortedKeys();
+    const labels = keys.map(getMonthLabel);
+    const values = keys.map(k => getTotal(all[k]));
+    const bgColors = keys.map(k => k === selectedTab ? '#4F6EF7' : 'rgba(79,110,247,0.25)');
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById('r_barChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: bgColors, borderRadius: 6, borderSkipped: false }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtFull(ctx.raw) } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Noto Sans KR', size: 11 }, color: '#9CA3AF' } },
+          y: { grid: { color: '#F0F2F8' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9CA3AF', callback: v => fmt(v) } }
+        }
+      }
+    });
+  }
+
+  function renderDonut() {
+    const data = getDataForPeriod(); const total = getTotal(data);
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(document.getElementById('r_donutChart'), {
+      type: 'doughnut',
+      data: { labels: ROUTES, datasets: [{ data: ROUTES.map(r => data[r]||0), backgroundColor: COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmtPct(ctx.raw, total)} (${fmt(ctx.raw)}원)` } } }
+      }
+    });
+  }
+
+  function renderTable() {
+    const keys = getSortedKeys(); const data = getDataForPeriod(); const total = getTotal(data);
+    document.getElementById('r_tablePeriod').textContent = selectedTab === '전체' ? `전체 ${keys.length}개월` : getMonthLabel(selectedTab);
+    let thead = '<thead><tr><th>내원경로</th><th>매출액</th><th>비율</th></tr></thead>';
+    const sorted = [...ROUTES].sort((a, b) => (data[b]||0) - (data[a]||0));
+    let tbody = '<tbody>';
+    sorted.forEach(r => {
+      const val = data[r]||0; const pct = total ? (val/total*100) : 0;
+      tbody += `<tr><td><span class="ratio-bar" style="width:${Math.round(pct*1.2)}px;background:${COLORS[ROUTES.indexOf(r)]}"></span>${r}</td><td>${val.toLocaleString()}</td><td>${pct.toFixed(2)}%</td></tr>`;
+    });
+    tbody += `<tr><td>합계</td><td>${total.toLocaleString()}</td><td>100%</td></tr></tbody>`;
+    document.getElementById('r_dataTable').innerHTML = thead + tbody;
+  }
+
+  function openEditModal() {
+    if (selectedTab === '전체') return;
+    const pw = prompt('비밀번호를 입력하세요.');
+    if (!pw || pw !== ADMIN_PW) { if (pw !== null) alert('비밀번호가 올바르지 않습니다.'); return; }
+    isEditMode = true;
+    document.getElementById('modalTitle').textContent = `✏️ ${getMonthLabel(selectedTab)} 수정 (내원경로)`;
+    document.getElementById('modalDivider').textContent = '내원경로별 매출액 (원)';
+    const [y, m] = selectedTab.split('-').map(Number);
+    const yi = document.getElementById('inputYear'); const mi = document.getElementById('inputMonth');
+    yi.value = y; mi.value = m; yi.disabled = true; mi.disabled = true;
+    const existing = getAllData()[selectedTab] || {};
+    document.getElementById('routeInputs').innerHTML = ROUTES.map(r =>
+      `<div class="form-group"><label class="form-label">${r}</label><input class="form-input" id="ri_${r.replace(/\s/g,'_')}" type="number" min="0" value="${existing[r]||0}"></div>`
+    ).join('');
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function openAddModal() {
+    const pw = prompt('비밀번호를 입력하세요.');
+    if (!pw || pw !== ADMIN_PW) { if (pw !== null) alert('비밀번호가 올바르지 않습니다.'); return; }
+    isEditMode = false;
+    document.getElementById('modalTitle').textContent = '📊 월 데이터 추가 (내원경로)';
+    document.getElementById('modalDivider').textContent = '내원경로별 매출액 (원)';
+    const yi = document.getElementById('inputYear'); const mi = document.getElementById('inputMonth');
+    yi.disabled = false; mi.disabled = false;
+    const keys = getSortedKeys();
+    if (keys.length > 0) {
+      const [y, m] = keys[keys.length-1].split('-').map(Number);
+      let ny = y, nm = m + 1;
+      if (nm > 12) { nm = 1; ny++; }
+      yi.value = ny; mi.value = nm;
+    }
+    document.getElementById('routeInputs').innerHTML = ROUTES.map(r =>
+      `<div class="form-group"><label class="form-label">${r}</label><input class="form-input" id="ri_${r.replace(/\s/g,'_')}" type="number" min="0" value="0"></div>`
+    ).join('');
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function saveData() {
+    const y = parseInt(document.getElementById('inputYear').value);
+    const m = parseInt(document.getElementById('inputMonth').value);
+    if (!y || !m || m < 1 || m > 12) { alert('연도와 월을 올바르게 입력하세요.'); return; }
+    const key = `${y}-${String(m).padStart(2,'0')}`;
+    const extra = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (!isEditMode && (extra[key] || BASE[key])) {
+      if (!confirm(`${getMonthLabel(key)} 데이터가 이미 있습니다. 덮어쓸까요?`)) return;
+    }
+    const entry = {};
+    ROUTES.forEach(r => { entry[r] = parseInt(document.getElementById(`ri_${r.replace(/\s/g,'_')}`).value) || 0; });
+    extra[key] = entry;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+    closeModal();
+    selectTab(key);
+  }
+
+  return { render, selectTab: (k) => selectTab(k), openEditModal, openAddModal, saveData, get selectedTab() { return selectedTab; } };
+})();
+
+/* ════════════════════════════
+   MODULE: 시술별 (P)
+   - 세부항목 기준으로 입력 → 분류 합계 자동 계산
+════════════════════════════ */
+const P = (() => {
+  const STORAGE_KEY  = 'procedure_extra_data_v2';  // v2: 항목 기반 저장
+  let selectedTab = '전체';
+  let barChart = null, donutChart = null;
+  let isExpanded = false;
+
+  const CATEGORIES = [
+    'VIP','색소&모공레이저','쥬브젠','리프팅','화장품',
+    '스킨부스터','줄기세포','실리프팅','리즈타임','보톡스',
+    '다이어트','필러','피부관리','제모','기타'
+  ];
+  const COLORS = [
+    '#4F6EF7','#F59E0B','#10B981','#EF4444','#8B5CF6',
+    '#EC4899','#06B6D4','#84CC16','#F97316','#6366F1',
+    '#14B8A6','#F43F5E','#A855F7','#CBD5E1','#94A3B8'
+  ];
+
+  // ── 세부항목 기반 원천 데이터 (분류 합계는 여기서 자동 계산) ──
+  const BASE_ITEMS = {
+    '2026-03': {
+      'VIP': {
+        'vip1000':329955000,'vip500':310000000,'vip300':129000000,
+        'vip700':119000000,'vip400':16000000,'vip200':12100000,'vip100':2000000
+      },
+      '색소&모공레이저': {
+        '리팟':360267100,'일반레이저':90616800,'올인원듀얼10회':14268000,
+        '미용키오딘':12709900,'모공큐어젯':7337100,'큐어젯쥬베룩':5593000,
+        '올인원듀얼토닝10회':3300000,'포텐자':2917600,'큐어젯쥬베룩3cc':2695000,
+        '포텐자쥬베룩볼륨':2259600,'원데이풀페이스올킬':1485000,'원데이색소50개한정':1430000,
+        '올인원베이직':1161800,'원데이색소50개이상':1089000,'여드름4주프로그램':759000,'3주미백올인원':649000
+      },
+      '쥬브젠': {
+        '쥬브젠':168845800,'쥬브젠올인원':10700000,'쥬브젠1부위':6600000,'흉터쥬브젠':500000
+      },
+      '리프팅': {
+        '울쎄라':97303400,'써마지FLX':18251000,'피팅':17342900,'올리지오':8059000,
+        '티타늄':4614000,'써마지FLX600샷':4378000,'슈링크':1894000,'울쎄라2프라임300샷':1309000,
+        '아이써마지225샷':1089000,'올리지오LDM':1089000,'피팅120kj':869000,'티타늄80kj':759000,
+        '슈링크유니버스600샷':638000,'울핏':605000,'피팅80kj':539000
+      },
+      '화장품': {
+        '유니덤':15290000,'리쥬비네이팅크림':11194000,'리쥬비네이팅앰플':7805000,
+        '리쥬비네이팅토너':7282000,'아쿠아시스80ml':6732000,'젤클렌저':6468000,
+        '피더린크림':5590000,'피더린토너':4332000,'피더린앰플':1728000,
+        '히스토랩EGF앰플150ML':1320000,'펩트릭선크림50ml':1102000,'아쿠아시스 300ml':778000,
+        '히알루론산 앰플150ML':720000,'히스토랩EGF앰플':512000,'메디베이 선크림':494000,
+        '레노케어':360000,'워터맥스폼클렌저':342000,'히알솔루션앰플150ml':121000,
+        '히알솔루션앰플52ml':88000,'CU크림':80000,'안티멜라토닝세럼':70000,
+        '닥터에스테 선크림':66000,'히알루론산앰플':64000,'듀오덤':48000,
+        '안티멜라토닝크림':42000,'레노덤선크림':39000,'선프로텍션크림':33000,'안티멜라토닝토너':32000
+      },
+      '스킨부스터': {
+        '레티젠3cc':12368300,'쥬브아셀':12320000,'리투오1실린지':10164000,
+        '리투오이벤트':9163000,'쥬베룩부스터':7782000,'리쥬란3cc':4356000,
+        '래디어스':3600000,'리쥬란2cc':1980000,'리즈타임주사 3회':1430000,
+        '리투오 6cc':1089000,'쥬베룩볼륨1병':1000000,'리바이브1CC':990000,
+        '리즈타임주사 1회':759000,'벨로테로리바이브1cc':726000,'리쥬란시너지':715000,
+        '힐로웨이브':649000,'레티젠2cc':590000,'리즈네2cc':440000,
+        '레티젠1cc':319000,'엑소좀':165000,'백옥주사':105000,'모공매끈주사1CC':99000
+      },
+      '줄기세포': {
+        '줄기세포':44413100,'줄기세포5단계':5159000,'줄기세포엑소좀':1750000,
+        'MCT엑소좀모드':1089000,'줄기세포1단계':1089000
+      },
+      '실리프팅': { '실리프팅무제한':19615500 },
+      '리즈타임':  { '눈밑 트라이덤':10517000,'눈밑타임주사':759000 },
+      '보톡스': {
+        '얼전보톡스(제)':2500800,'얼전보톡스(국)':1488400,'얼위보톡스':762300,
+        '미간보톡스(제)':633600,'턱보톡스(국)':514000,'턱보톡스(제)':396000,
+        '미간보톡스(국)':390500,'사각턱보톡스(국)':308000,'이마보톡스(제)':264000,
+        '사각턱보톡스(제)':264000,'침샘보톡스(제)':237600,'특수부위(국)':198000,
+        '이마보톡스(국)':165000,'침샘보톡스(국)':99000,'눈가보톡스(제)':88000,
+        '콧등보톡스(국)':55000,'눈가보톡스(국)':27500
+      },
+      '다이어트': { '웰핏':2266900,'웰핏주사24CC':957000,'마운자로 5':610000,'마운자로0.25':590000 },
+      '필러':     { '이마필러':1860000,'입술필러':1140000 },
+      '피부관리': { '아쿠아필':1094400,'라라젯':890000,'아쿠아필 ldm':291000 },
+      '제모':     { '제모':143000 },
+      '기타':     { 'TA':132000 }
+    }
+  };
+
+  // ── 세부항목 합산 → 분류 합계 계산 ──
+  function calcCategoryTotals(itemData) {
+    const totals = {};
+    CATEGORIES.forEach(c => {
+      totals[c] = Object.values(itemData[c] || {}).reduce((s, v) => s + v, 0);
+    });
+    return totals;
+  }
+
+  // ── localStorage에서 추가 항목 데이터 읽기 ──
+  function getAllItemData() {
+    const extra = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    // BASE_ITEMS를 깊은 복사 후 extra로 덮어쓰기
+    const merged = {};
+    Object.keys(BASE_ITEMS).forEach(mo => {
+      merged[mo] = {};
+      CATEGORIES.forEach(c => { merged[mo][c] = { ...(BASE_ITEMS[mo][c] || {}) }; });
+    });
+    Object.keys(extra).forEach(mo => {
+      if (!merged[mo]) { merged[mo] = {}; CATEGORIES.forEach(c => { merged[mo][c] = {}; }); }
+      CATEGORIES.forEach(c => {
+        if (extra[mo][c]) merged[mo][c] = { ...(merged[mo][c] || {}), ...extra[mo][c] };
+      });
+    });
+    return merged;
+  }
+
+  function getSortedKeys() { return Object.keys(getAllItemData()).sort(); }
+
+  function getTotal(catTotals) { return CATEGORIES.reduce((s, c) => s + (catTotals[c] || 0), 0); }
+
+  function getCatTotalsForPeriod() {
+    const all = getAllItemData();
+    if (selectedTab === '전체') {
+      const merged = {};
+      CATEGORIES.forEach(c => { merged[c] = 0; });
+      Object.values(all).forEach(mo => {
+        const t = calcCategoryTotals(mo);
+        CATEGORIES.forEach(c => { merged[c] += (t[c] || 0); });
+      });
+      return merged;
+    }
+    return calcCategoryTotals(all[selectedTab] || {});
+  }
+
+  function getItemsForPeriod() {
+    const all = getAllItemData();
+    if (selectedTab === '전체') {
+      const merged = {};
+      CATEGORIES.forEach(c => { merged[c] = {}; });
+      Object.values(all).forEach(mo => {
+        CATEGORIES.forEach(c => {
+          Object.entries(mo[c] || {}).forEach(([item, val]) => {
+            merged[c][item] = (merged[c][item] || 0) + val;
+          });
+        });
+      });
+      return merged;
+    }
+    return all[selectedTab] || {};
+  }
+
+  function selectTab(key) {
+    selectedTab = key;
+    document.getElementById('editBtn').disabled = (key === '전체');
+    render();
+  }
+
+  function toggleExpand() {
+    isExpanded = !isExpanded;
+    document.getElementById('p_expandBtn').textContent = isExpanded ? '−' : '+';
+    renderTable();
+  }
+
+  function render() { renderTabs(); renderKPI(); renderBar(); renderDonut(); renderTable(); }
+
+  function renderTabs() {
+    const keys = getSortedKeys();
+    let html = `<button class="tab-btn ${selectedTab==='전체'?'active':''}" onclick="P.selectTab('전체')">전체</button>`;
+    keys.forEach(k => {
+      html += `<button class="tab-btn ${selectedTab===k?'active':''}" onclick="P.selectTab('${k}')">${getMonthLabel(k)}</button>`;
+    });
+    document.getElementById('p_tabBar').innerHTML = html;
+  }
+
+  function renderKPI() {
+    const keys = getSortedKeys();
+    const catTotals = getCatTotalsForPeriod();
+    const total = getTotal(catTotals);
+    document.getElementById('p_kpiTotal').textContent = fmt(total) + '원';
+    document.getElementById('p_kpiTotalSub').textContent = selectedTab === '전체' ? `${keys.length}개월 누적` : getMonthLabel(selectedTab);
+    const mc = selectedTab === '전체' ? keys.length : 1;
+    document.getElementById('p_kpiAvg').textContent = fmt(Math.round(total / (mc || 1))) + '원';
+    document.getElementById('p_kpiAvgSub').textContent = selectedTab === '전체' ? `${keys.length}개월 기준` : '단월 기준';
+    let topC = '', topV = 0;
+    CATEGORIES.forEach(c => { if ((catTotals[c]||0) > topV) { topV = catTotals[c]||0; topC = c; } });
+    document.getElementById('p_kpiTop').textContent = topC || '—';
+    document.getElementById('p_kpiTopSub').textContent = topV ? `${fmt(topV)}원 (${fmtPct(topV, total)})` : '';
+    document.getElementById('p_kpiMonths').textContent = keys.length + '개월';
+    document.getElementById('p_kpiMonthsSub').textContent = keys.length > 0 ? `${getMonthLabel(keys[0])} ~ ${getMonthLabel(keys[keys.length-1])}` : '';
+  }
+
+  function renderBar() {
+    const all = getAllItemData(); const keys = getSortedKeys();
+    const labels = keys.map(getMonthLabel);
+    const values = keys.map(k => getTotal(calcCategoryTotals(all[k])));
+    const bgColors = keys.map(k => k === selectedTab ? '#4F6EF7' : 'rgba(79,110,247,0.25)');
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById('p_barChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: bgColors, borderRadius: 6, borderSkipped: false }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtFull(ctx.raw) } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Noto Sans KR', size: 11 }, color: '#9CA3AF' } },
+          y: { grid: { color: '#F0F2F8' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9CA3AF', callback: v => fmt(v) } }
+        }
+      }
+    });
+  }
+
+  function renderDonut() {
+    const catTotals = getCatTotalsForPeriod(); const total = getTotal(catTotals);
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(document.getElementById('p_donutChart'), {
+      type: 'doughnut',
+      data: { labels: CATEGORIES, datasets: [{ data: CATEGORIES.map(c => catTotals[c]||0), backgroundColor: COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmtPct(ctx.raw, total)} (${fmt(ctx.raw)}원)` } } }
+      }
+    });
+  }
+
+  function renderTable() {
+    const keys = getSortedKeys();
+    const catTotals = getCatTotalsForPeriod();
+    const total = getTotal(catTotals);
+    const items = isExpanded ? getItemsForPeriod() : null;
+    document.getElementById('p_tablePeriod').textContent = selectedTab === '전체' ? `전체 ${keys.length}개월` : getMonthLabel(selectedTab);
+    document.getElementById('p_expandBtn').textContent = isExpanded ? '−' : '+';
+
+    let thead = `<thead><tr><th>${isExpanded ? '분류 / 항목' : '시술 분류'}</th><th>매출액</th><th>비율</th></tr></thead>`;
+    const sorted = [...CATEGORIES].sort((a, b) => (catTotals[b]||0) - (catTotals[a]||0));
+    let tbody = '<tbody>';
+    sorted.forEach(c => {
+      const val = catTotals[c]||0; const pct = total ? (val/total*100) : 0;
+      const color = COLORS[CATEGORIES.indexOf(c)];
+      tbody += `<tr class="cat-row"><td><span class="ratio-bar" style="width:${Math.round(pct*1.2)}px;background:${color}"></span><strong>${c}</strong></td><td>${val.toLocaleString()}</td><td>${pct.toFixed(2)}%</td></tr>`;
+      if (isExpanded && items && items[c]) {
+        const catItems = Object.entries(items[c]).sort((a,b) => b[1]-a[1]);
+        catItems.forEach(([item, ival]) => {
+          const ipct = val ? (ival/val*100) : 0;
+          tbody += `<tr class="item-row"><td>↳ ${item}</td><td>${ival.toLocaleString()}</td><td style="color:var(--text-mute)">${ipct.toFixed(1)}%</td></tr>`;
+        });
+      }
+    });
+    tbody += `<tr><td>합계</td><td>${total.toLocaleString()}</td><td>100%</td></tr></tbody>`;
+    document.getElementById('p_dataTable').innerHTML = thead + tbody;
+  }
+
+  // ── 모달: 세부항목 입력 폼 렌더링 ──
+  function renderProcedureModal(monthKey, isEdit) {
+    const all = getAllItemData();
+    const existing = all[monthKey] || {};
+
+    let html = '';
+    CATEGORIES.forEach((c, ci) => {
+      const color = COLORS[ci];
+      const catItems = existing[c] || {};
+      const catTotal = Object.values(catItems).reduce((s, v) => s + v, 0);
+      const safeC = c.replace(/[&\s]/g, '_');
+
+      html += `
+        <div class="p-cat-block" id="pcat_${safeC}" style="grid-column:span 2; margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:8px 8px 0 0;border:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+              <strong style="font-size:12px;color:var(--text);">${c}</strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11px;font-family:var(--font-mono);color:var(--accent);" id="psubtotal_${safeC}">${catTotal.toLocaleString()}원</span>
+              <button type="button" onclick="P.addItemRow('${safeC}')" style="padding:2px 8px;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;">+ 항목 추가</button>
+            </div>
+          </div>
+          <div id="prows_${safeC}" style="border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;">`;
+
+      Object.entries(catItems).sort((a,b) => b[1]-a[1]).forEach(([item, val]) => {
+        const safeItem = item.replace(/[\s()&]/g,'_') + '_' + Math.random().toString(36).slice(2,6);
+        html += renderItemRow(safeC, safeItem, item, val);
+      });
+
+      html += `</div></div>`;
+    });
+
+    document.getElementById('routeInputs').innerHTML = html;
+    // 스타일 오버라이드: 모달 너비 확장
+    document.querySelector('.modal').style.maxWidth = '720px';
+  }
+
+  function renderItemRow(safeC, safeItem, itemName, val) {
+    return `
+      <div class="p-item-row" id="row_${safeItem}" style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);">
+        <input class="form-input" placeholder="항목명" value="${itemName}" style="font-size:11px;" id="iname_${safeItem}" oninput="P.onItemChange('${safeC}')">
+        <input class="form-input" type="number" min="0" placeholder="금액(원)" value="${val}" style="font-size:11px;width:130px;text-align:right;font-family:var(--font-mono);" id="ival_${safeItem}" oninput="P.onItemChange('${safeC}')">
+        <button type="button" onclick="P.removeItemRow('${safeItem}','${safeC}')" style="width:24px;height:24px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-mute);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>`;
+  }
+
+  // 소계 실시간 업데이트
+  function onItemChange(safeC) {
+    const rows = document.getElementById(`prows_${safeC}`);
+    if (!rows) return;
+    let sum = 0;
+    rows.querySelectorAll('input[type=number]').forEach(inp => { sum += parseInt(inp.value) || 0; });
+    const el = document.getElementById(`psubtotal_${safeC}`);
+    if (el) el.textContent = sum.toLocaleString() + '원';
+  }
+
+  // 항목 행 추가
+  function addItemRow(safeC) {
+    const rows = document.getElementById(`prows_${safeC}`);
+    if (!rows) return;
+    const safeItem = 'new_' + Math.random().toString(36).slice(2,8);
+    rows.insertAdjacentHTML('beforeend', renderItemRow(safeC, safeItem, '', 0));
+  }
+
+  // 항목 행 삭제
+  function removeItemRow(safeItem, safeC) {
+    const row = document.getElementById(`row_${safeItem}`);
+    if (row) row.remove();
+    onItemChange(safeC);
+  }
+
+  // 모달에서 데이터 수집
+  function collectModalData() {
+    const result = {};
+    CATEGORIES.forEach(c => {
+      const safeC = c.replace(/[&\s]/g, '_');
+      const rows = document.getElementById(`prows_${safeC}`);
+      if (!rows) return;
+      result[c] = {};
+      rows.querySelectorAll('.p-item-row').forEach(row => {
+        const id = row.id.replace('row_', '');
+        const nameEl = document.getElementById(`iname_${id}`);
+        const valEl  = document.getElementById(`ival_${id}`);
+        if (!nameEl || !valEl) return;
+        const name = nameEl.value.trim();
+        const val  = parseInt(valEl.value) || 0;
+        if (name) result[c][name] = (result[c][name] || 0) + val;
+      });
+    });
+    return result;
+  }
+
+  function openEditModal() {
+    if (selectedTab === '전체') return;
+    const pw = prompt('비밀번호를 입력하세요.');
+    if (!pw || pw !== ADMIN_PW) { if (pw !== null) alert('비밀번호가 올바르지 않습니다.'); return; }
+    document.getElementById('modalTitle').textContent = `✏️ ${getMonthLabel(selectedTab)} 수정 (시술별 세부항목)`;
+    document.getElementById('modalDivider').textContent = '분류별 세부항목 금액 (원) — 항목 합산이 분류 합계로 자동 반영됩니다';
+    const [y, m] = selectedTab.split('-').map(Number);
+    const yi = document.getElementById('inputYear'); const mi = document.getElementById('inputMonth');
+    yi.value = y; mi.value = m; yi.disabled = true; mi.disabled = true;
+    renderProcedureModal(selectedTab, true);
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function openAddModal() {
+    const pw = prompt('비밀번호를 입력하세요.');
+    if (!pw || pw !== ADMIN_PW) { if (pw !== null) alert('비밀번호가 올바르지 않습니다.'); return; }
+    document.getElementById('modalTitle').textContent = '📊 월 데이터 추가 (시술별 세부항목)';
+    document.getElementById('modalDivider').textContent = '분류별 세부항목 금액 (원) — 항목 합산이 분류 합계로 자동 반영됩니다';
+    const yi = document.getElementById('inputYear'); const mi = document.getElementById('inputMonth');
+    yi.disabled = false; mi.disabled = false;
+    const keys = getSortedKeys();
+    let targetKey = '';
+    if (keys.length > 0) {
+      const [y, m] = keys[keys.length-1].split('-').map(Number);
+      let ny = y, nm = m + 1;
+      if (nm > 12) { nm = 1; ny++; }
+      yi.value = ny; mi.value = nm;
+      targetKey = `${ny}-${String(nm).padStart(2,'0')}`;
+    } else {
+      yi.value = 2026; mi.value = 4;
+      targetKey = '2026-04';
+    }
+    renderProcedureModal(targetKey, false);
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function saveData() {
+    const y = parseInt(document.getElementById('inputYear').value);
+    const m = parseInt(document.getElementById('inputMonth').value);
+    if (!y || !m || m < 1 || m > 12) { alert('연도와 월을 올바르게 입력하세요.'); return; }
+    const key = `${y}-${String(m).padStart(2,'0')}`;
+    const extra = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (extra[key] && !confirm(`${getMonthLabel(key)} 데이터가 이미 있습니다. 덮어쓸까요?`)) return;
+    extra[key] = collectModalData();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+    document.querySelector('.modal').style.maxWidth = '';
+    closeModal();
+    selectTab(key);
+  }
+
+  return {
+    render, selectTab: (k) => selectTab(k), toggleExpand,
+    openEditModal, openAddModal, saveData,
+    onItemChange, addItemRow, removeItemRow,
+    get selectedTab() { return selectedTab; }
+  };
+})();
+
+/* ════════════════════════════
+   MODULE: 화장품 (C)
+════════════════════════════ */
+const C = (() => {
+  const STORAGE_KEY = 'cosmetics_extra_data';
+  let selectedTab = '전체';
+  let barChart = null, donutChart = null;
+  let isEditMode = false;
+
+  const ITEMS = [
+    'CU크림','닥터에스테 선크림','듀얼베리어 크림','레노덤선크림50g',
+    '리쥬비네이팅앰플30ml','리쥬비네이팅크림70ml','리쥬비네이팅토너',
+    '메디베이 선크림 50ml','메디베이MD','메디베이크림100g','선프로텍션크림',
+    '스킨레이저토너','아쿠아시스 300ml','아쿠아시스 80ml',
+    '안티멜라토닝세럼','안티멜라토닝크림','안티멜라토닝토너','워터맥스폼클렌저',
+    '유니덤100ml','젤클렌저','콤플렉스 씨유쓰리 포스트레이저 크림',
+    '펩트릭선크림50ml','피더린앰플30ml','피더린크림30ml','피더린토너100ML',
+    '히스토랩 히알루론산 앰플','히스토랩 히알루론산앰플150ML','히스토랩EGF앰플',
+    '히알모이스쳐솔루션앰플150ml','히알모이스쳐솔루션앰플52ml'
+  ];
+
+  const BASE = {
+    '2026-01': {
+      'CU크림':{a:80000,c:4,p:4},'닥터에스테 선크림':{a:0,c:0,p:0},'듀얼베리어 크림':{a:0,c:0,p:0},
+      '레노덤선크림50g':{a:0,c:0,p:0},'리쥬비네이팅앰플30ml':{a:9085240,c:183,p:177},
+      '리쥬비네이팅크림70ml':{a:14619641,c:216,p:210},'리쥬비네이팅토너':{a:8113482,c:205,p:201},
+      '메디베이 선크림 50ml':{a:1064000,c:21,p:21},'메디베이MD':{a:110805,c:2,p:2},
+      '메디베이크림100g':{a:29148,c:1,p:1},'선프로텍션크림':{a:0,c:0,p:0},
+      '스킨레이저토너':{a:28000,c:1,p:1},'아쿠아시스 300ml':{a:0,c:0,p:0},
+      '아쿠아시스 80ml':{a:7686149,c:144,p:143},'안티멜라토닝세럼':{a:0,c:0,p:0},
+      '안티멜라토닝크림':{a:0,c:0,p:0},'안티멜라토닝토너':{a:0,c:0,p:0},
+      '워터맥스폼클렌저':{a:0,c:0,p:0},'유니덤100ml':{a:13661239,c:217,p:214},
+      '젤클렌저':{a:6224008,c:131,p:130},'콤플렉스 씨유쓰리 포스트레이저 크림':{a:216594,c:10,p:10},
+      '펩트릭선크림50ml':{a:1064000,c:20,p:19},'피더린앰플30ml':{a:72000,c:1,p:1},
+      '피더린크림30ml':{a:780000,c:11,p:11},'피더린토너100ML':{a:228000,c:4,p:4},
+      '히스토랩 히알루론산 앰플':{a:0,c:0,p:0},'히스토랩 히알루론산앰플150ML':{a:0,c:0,p:0},
+      '히스토랩EGF앰플':{a:0,c:0,p:0},
+      '히알모이스쳐솔루션앰플150ml':{a:0,c:0,p:0},'히알모이스쳐솔루션앰플52ml':{a:0,c:0,p:0}
+    },
+    '2026-02': {
+      'CU크림':{a:40000,c:2,p:2},'닥터에스테 선크림':{a:0,c:0,p:0},'듀얼베리어 크림':{a:30364,c:1,p:1},
+      '레노덤선크림50g':{a:78000,c:2,p:2},'리쥬비네이팅앰플30ml':{a:8005350,c:172,p:167},
+      '리쥬비네이팅크림70ml':{a:12583052,c:185,p:181},'리쥬비네이팅토너':{a:7375828,c:186,p:182},
+      '메디베이 선크림 50ml':{a:722000,c:12,p:12},'메디베이MD':{a:102031,c:3,p:2},
+      '메디베이크림100g':{a:31069,c:1,p:1},'선프로텍션크림':{a:0,c:0,p:0},
+      '스킨레이저토너':{a:0,c:0,p:0},'아쿠아시스 300ml':{a:0,c:0,p:0},
+      '아쿠아시스 80ml':{a:5477794,c:104,p:101},'안티멜라토닝세럼':{a:0,c:0,p:0},
+      '안티멜라토닝크림':{a:0,c:0,p:0},'안티멜라토닝토너':{a:0,c:0,p:0},
+      '워터맥스폼클렌저':{a:228000,c:5,p:5},'유니덤100ml':{a:11586623,c:189,p:185},
+      '젤클렌저':{a:4960853,c:112,p:111},'콤플렉스 씨유쓰리 포스트레이저 크림':{a:400000,c:15,p:15},
+      '펩트릭선크림50ml':{a:874000,c:16,p:16},'피더린앰플30ml':{a:144000,c:2,p:2},
+      '피더린크림30ml':{a:1029617,c:14,p:14},'피더린토너100ML':{a:570000,c:10,p:10},
+      '히스토랩 히알루론산 앰플':{a:0,c:0,p:0},'히스토랩 히알루론산앰플150ML':{a:0,c:0,p:0},
+      '히스토랩EGF앰플':{a:64000,c:1,p:1},
+      '히알모이스쳐솔루션앰플150ml':{a:0,c:0,p:0},'히알모이스쳐솔루션앰플52ml':{a:0,c:0,p:0}
+    },
+    '2026-03': {
+      'CU크림':{a:80000,c:4,p:4},'닥터에스테 선크림':{a:66000,c:2,p:2},'듀얼베리어 크림':{a:0,c:0,p:0},
+      '레노덤선크림50g':{a:39000,c:1,p:1},'리쥬비네이팅앰플30ml':{a:7737106,c:175,p:173},
+      '리쥬비네이팅크림70ml':{a:11144506,c:168,p:166},'리쥬비네이팅토너':{a:6982050,c:193,p:191},
+      '메디베이 선크림 50ml':{a:494000,c:12,p:11},'메디베이MD':{a:86126,c:3,p:3},
+      '메디베이크림100g':{a:0,c:0,p:0},'선프로텍션크림':{a:33000,c:1,p:1},
+      '스킨레이저토너':{a:0,c:0,p:0},'아쿠아시스 300ml':{a:81557,c:1,p:1},
+      '아쿠아시스 80ml':{a:6574731,c:130,p:130},'안티멜라토닝세럼':{a:70000,c:2,p:2},
+      '안티멜라토닝크림':{a:42000,c:1,p:1},'안티멜라토닝토너':{a:32000,c:1,p:1},
+      '워터맥스폼클렌저':{a:342000,c:8,p:8},'유니덤100ml':{a:15207162,c:247,p:244},
+      '젤클렌저':{a:6413928,c:138,p:137},'콤플렉스 씨유쓰리 포스트레이저 크림':{a:200000,c:9,p:9},
+      '펩트릭선크림50ml':{a:1087720,c:22,p:22},'피더린앰플30ml':{a:1596427,c:22,p:20},
+      '피더린크림30ml':{a:5280756,c:69,p:67},'피더린토너100ML':{a:4138120,c:70,p:68},
+      '히스토랩 히알루론산 앰플':{a:64000,c:1,p:1},'히스토랩 히알루론산앰플150ML':{a:700831,c:6,p:6},
+      '히스토랩EGF앰플':{a:506687,c:8,p:8},
+      '히알모이스쳐솔루션앰플150ml':{a:121000,c:1,p:1},'히알모이스쳐솔루션앰플52ml':{a:84347,c:2,p:2}
+    }
+  };
+
+  const DONUT_COLORS = [
+    '#4F6EF7','#F59E0B','#10B981','#EF4444','#8B5CF6',
+    '#EC4899','#06B6D4','#84CC16','#F97316','#6366F1','#CBD5E1'
+  ];
+
+  function getAllData() {
+    const extra = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    return { ...BASE, ...extra };
+  }
+  function getSortedKeys() { return Object.keys(getAllData()).sort(); }
+
+  function getDataForPeriod() {
+    const all = getAllData();
+    if (selectedTab === '전체') {
+      const merged = {};
+      ITEMS.forEach(item => {
+        merged[item] = { a: 0, c: 0, p: 0 };
+        Object.values(all).forEach(mo => {
+          merged[item].a += (mo[item]?.a || 0);
+          merged[item].c += (mo[item]?.c || 0);
+          merged[item].p += (mo[item]?.p || 0);
+        });
+      });
+      return merged;
+    }
+    const mo = all[selectedTab] || {};
+    const result = {};
+    ITEMS.forEach(item => { result[item] = mo[item] || {a:0,c:0,p:0}; });
+    return result;
+  }
+
+  function getTotalAmt(data) { return ITEMS.reduce((s, i) => s + (data[i]?.a || 0), 0); }
+  function getTotalCnt(data) { return ITEMS.reduce((s, i) => s + (data[i]?.c || 0), 0); }
+
+  function selectTab(key) {
+    selectedTab = key;
+    document.getElementById('editBtn').disabled = (key === '전체');
+    render();
+  }
+
+  function render() { renderTabs(); renderKPI(); renderBar(); renderDonut(); renderTable(); }
+
+  function renderTabs() {
+    const keys = getSortedKeys();
+    let html = `<button class="tab-btn ${selectedTab==='전체'?'active':''}" onclick="C.selectTab('전체')">전체</button>`;
+    keys.forEach(k => {
+      html += `<button class="tab-btn ${selectedTab===k?'active':''}" onclick="C.selectTab('${k}')">${getMonthLabel(k)}</button>`;
+    });
+    document.getElementById('c_tabBar').innerHTML = html;
+  }
+
+  function renderKPI() {
+    const keys = getSortedKeys();
+    const data = getDataForPeriod();
+    const totalAmt = getTotalAmt(data);
+    const totalCnt = getTotalCnt(data);
+    const mc = selectedTab === '전체' ? keys.length : 1;
+
+    document.getElementById('c_kpiTotal').textContent = fmt(totalAmt) + '원';
+    document.getElementById('c_kpiTotalSub').textContent = selectedTab === '전체' ? `${keys.length}개월 누적` : getMonthLabel(selectedTab);
+    document.getElementById('c_kpiAvg').textContent = fmt(Math.round(totalAmt / (mc || 1))) + '원';
+    document.getElementById('c_kpiAvgSub').textContent = selectedTab === '전체' ? `${keys.length}개월 기준` : '단월 기준';
+    document.getElementById('c_kpiCnt').textContent = totalCnt.toLocaleString() + '회';
+    document.getElementById('c_kpiCntSub').textContent = selectedTab === '전체' ? '전체 판매 횟수' : getMonthLabel(selectedTab);
+
+    let topItem = '', topAmt = 0;
+    ITEMS.forEach(i => { if ((data[i]?.a || 0) > topAmt) { topAmt = data[i].a; topItem = i; } });
+    document.getElementById('c_kpiTop').textContent = topItem || '—';
+    document.getElementById('c_kpiTopSub').textContent = topAmt ? `${fmt(topAmt)}원` : '';
+  }
+
+  function renderBar() {
+    const all = getAllData();
+    const keys = getSortedKeys();
+    const labels = keys.map(getMonthLabel);
+    const values = keys.map(k => ITEMS.reduce((s, i) => s + (all[k]?.[i]?.a || 0), 0));
+    const bgColors = keys.map(k => k === selectedTab ? '#4F6EF7' : 'rgba(79,110,247,0.25)');
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById('c_barChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: bgColors, borderRadius: 6, borderSkipped: false }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtFull(ctx.raw) } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Noto Sans KR', size: 11 }, color: '#9CA3AF' } },
+          y: { grid: { color: '#F0F2F8' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9CA3AF', callback: v => fmt(v) } }
+        }
+      }
+    });
+  }
+
+  function renderDonut() {
+    const data = getDataForPeriod();
+    const total = getTotalAmt(data);
+    const sorted = [...ITEMS].sort((a, b) => (data[b]?.a || 0) - (data[a]?.a || 0));
+    const top10 = sorted.slice(0, 10);
+    const othersAmt = sorted.slice(10).reduce((s, i) => s + (data[i]?.a || 0), 0);
+    const labels = [...top10, '기타'];
+    const vals = [...top10.map(i => data[i]?.a || 0), othersAmt];
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(document.getElementById('c_donutChart'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: vals, backgroundColor: DONUT_COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmtPct(ctx.raw, total)} (${fmt(ctx.raw)}원)` } } }
+      }
+    });
+  }
+
+  function renderTable() {
+    const keys = getSortedKeys();
+    const data = getDataForPeriod();
+    const total = getTotalAmt(data);
+    document.getElementById('c_tablePeriod').textContent = selectedTab === '전체' ? `전체 ${keys.length}개월` : getMonthLabel(selectedTab);
+    let thead = '<thead><tr><th>제품명</th><th>매출액</th><th>판매 횟수</th><th>구매 인원</th><th>비율</th></tr></thead>';
+    const sorted = [...ITEMS].sort((a, b) => (data[b]?.a || 0) - (data[a]?.a || 0));
+    let hiddenCount = 0;
+    let tbody = '<tbody>';
+    sorted.forEach((item, idx) => {
+      const val = data[item]?.a || 0;
+      const cnt = data[item]?.c || 0;
+      const ppl = data[item]?.p || 0;
+      if (val === 0 && cnt === 0) { hiddenCount++; return; }
+      const pct = total ? (val / total * 100) : 0;
+      const color = DONUT_COLORS[Math.min(idx, DONUT_COLORS.length - 2)];
+      tbody += `<tr><td><span class="ratio-bar" style="width:${Math.round(pct*1.2)}px;background:${color}"></span>${item}</td><td>${val.toLocaleString()}</td><td>${cnt.toLocaleString()}회</td><td>${ppl.toLocaleString()}명</td><td>${pct.toFixed(2)}%</td></tr>`;
+    });
+    const totalCnt = getTotalCnt(data);
+    const totalPpl = ITEMS.reduce((s, i) => s + (data[i]?.p || 0), 0);
+    tbody += `<tr><td>합계</td><td>${total.toLocaleString()}</td><td>${totalCnt.toLocaleString()}회</td><td>${totalPpl.toLocaleString()}명</td><td>100%</td></tr></tbody>`;
+    document.getElementById('c_dataTable').innerHTML = thead + tbody;
+
+    const noteEl = document.getElementById('c_tableNote');
+    if (noteEl) {
+      noteEl.textContent = hiddenCount > 0
+        ? `* 해당 기간 매출이 없는 제품 ${hiddenCount}개는 표에서 생략되었습니다.`
+        : '';
+    }
+  }
+
+  function openEditModal() {
+    if (selectedTab === '전체') return;
+    const pw = prompt('비밀번호를 입력하세요.');
+    if (!pw || pw !== ADMIN_PW) { if (pw !== null) alert('비밀번호가 올바르지 않습니다.'); return; }
+    isEditMode = true;
+    const [y, m] = selectedTab.split('-').map(Number);
+    document.getElementById('modalTitle').textContent = `✏️ ${getMonthLabel(selectedTab)} 수정 (화장품)`;
+    document.getElementById('modalDivider').textContent = '제품별 매출액 / 횟수 / 인원 (원)';
+    const yi = document.getElementById('inputYear'); const mi = document.getElementById('inputMonth');
+    yi.value = y; mi.value = m; yi.disabled = true; mi.disabled = true;
+    const existing = getAllData()[selectedTab] || {};
+    document.getElementById('routeInputs').innerHTML = ITEMS.map(item => {
+      const d = existing[item] || {a:0,c:0,p:0};
+      const id = item.replace(/[\s()]/g,'_');
+      return `<div class="form-group" style="grid-column:span 2">
+        <label class="form-label">${item}</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+          <input class="form-input" id="ci_a_${id}" type="number" min="0" value="${d.a}" placeholder="금액">
+          <input class="form-input" id="ci_c_${id}" type="number" min="0" value="${d.c}" placeholder="횟수">
+          <input class="form-input" id="ci_p_${id}" type="number" min="0" value="${d.p}" placeholder="인원">
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function openAddModal() {
+    const pw = prompt('비밀번호를 입력하세요.');
+    if (!pw || pw !== ADMIN_PW) { if (pw !== null) alert('비밀번호가 올바르지 않습니다.'); return; }
+    isEditMode = false;
+    document.getElementById('modalTitle').textContent = '📊 월 데이터 추가 (화장품)';
+    document.getElementById('modalDivider').textContent = '제품별 매출액 / 횟수 / 인원 (원)';
+    const yi = document.getElementById('inputYear'); const mi = document.getElementById('inputMonth');
+    yi.disabled = false; mi.disabled = false;
+    const keys = getSortedKeys();
+    if (keys.length > 0) {
+      const [y, m] = keys[keys.length-1].split('-').map(Number);
+      let ny = y, nm = m + 1;
+      if (nm > 12) { nm = 1; ny++; }
+      yi.value = ny; mi.value = nm;
+    }
+    document.getElementById('routeInputs').innerHTML = ITEMS.map(item => {
+      const id = item.replace(/[\s()]/g,'_');
+      return `<div class="form-group" style="grid-column:span 2">
+        <label class="form-label">${item}</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+          <input class="form-input" id="ci_a_${id}" type="number" min="0" value="0" placeholder="금액">
+          <input class="form-input" id="ci_c_${id}" type="number" min="0" value="0" placeholder="횟수">
+          <input class="form-input" id="ci_p_${id}" type="number" min="0" value="0" placeholder="인원">
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function saveData() {
+    const y = parseInt(document.getElementById('inputYear').value);
+    const m = parseInt(document.getElementById('inputMonth').value);
+    if (!y || !m || m < 1 || m > 12) { alert('연도와 월을 올바르게 입력하세요.'); return; }
+    const key = `${y}-${String(m).padStart(2,'0')}`;
+    const extra = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (!isEditMode && (extra[key] || BASE[key])) {
+      if (!confirm(`${getMonthLabel(key)} 데이터가 이미 있습니다. 덮어쓸까요?`)) return;
+    }
+    const entry = {};
+    ITEMS.forEach(item => {
+      const id = item.replace(/[\s()]/g,'_');
+      entry[item] = {
+        a: parseInt(document.getElementById(`ci_a_${id}`)?.value) || 0,
+        c: parseInt(document.getElementById(`ci_c_${id}`)?.value) || 0,
+        p: parseInt(document.getElementById(`ci_p_${id}`)?.value) || 0,
+      };
+    });
+    extra[key] = entry;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+    closeModal();
+    selectTab(key);
+  }
+
+  return { render, selectTab: (k) => selectTab(k), openEditModal, openAddModal, saveData, get selectedTab() { return selectedTab; } };
+})();
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('inputYear').disabled = false;
+  document.getElementById('inputMonth').disabled = false;
+  document.querySelector('.modal').style.maxWidth = '';
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function saveData() {
+  if (currentSection === 'route') R.saveData();
+  else if (currentSection === 'procedure') P.saveData();
+  else C.saveData();
+}
+
+/* ── INIT ── */
+R.render();
+P.render();
+</script>
+</body>
+</html>
